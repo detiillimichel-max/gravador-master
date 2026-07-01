@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Gravador OIO v2</title>
+<meta name="theme-color" content="#121212">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; background: #121212; color: #E3E3E3; font-family: Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overscroll-behavior: none; }
+body { -webkit-font-smoothing: antialiased; }
+.app { min-height: 100%; display: flex; flex-direction: column; }
+header { height: 56px; display: flex; align-items: center; padding: 0 4px; position: sticky; top: 0; background: #121212; z-index: 10; }
+header button { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: none; border: none; color: #E3E3E3; border-radius: 50%; cursor: pointer; }
+header button:active { background: rgba(255,255,255,0.08); }
+.header-title { flex: 1; text-align: center; font-size: 20px; font-weight: 500; letter-spacing: 0.15px; }
+.header-search { flex: 1; padding: 0 12px; display: none; }
+.header-search input { width: 100%; background: #2D2F33; border: none; border-radius: 20px; padding: 10px 16px; color: #fff; font-size: 15px; outline: none; }
+main { flex: 1; padding-bottom: 120px; max-width: 720px; width: 100%; margin: 0 auto; }
+.group h3 { margin: 0; padding: 20px 24px 8px; font-size: 14px; font-weight: 400; color: #9AA0A6; text-transform: lowercase; }
+.rec-item { display: flex; align-items: center; gap: 16px; padding: 10px 16px; }
+.play-btn { width: 48px; height: 48px; border-radius: 50%; background: #2D2F33; border: none; color: #E3E3E3; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; transition: background 0.2s; }
+.play-btn:active { background: #3a3c40; }
+.rec-info { flex: 1; min-width: 0; }
+.rec-name { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
+.rec-meta { font-size: 13px; color: #9AA0A6; margin-top: 2px; }
+.fab-container { position: fixed; left: 0; right: 0; bottom: 0; height: 112px; display: flex; align-items: flex-start; justify-content: center; padding-top: 16px; pointer-events: none; background: linear-gradient(to top, #121212 60%, transparent); z-index: 20; }
+#record-btn { width: 72px; height: 72px; border-radius: 50%; background: #D32F2F; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 6px rgba(211,47,47,0.15); display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; cursor: pointer; transition: transform 0.1s; }
+#record-btn:active { transform: scale(0.94); }
+#overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); opacity: 0; visibility: hidden; transition: 0.3s; z-index: 99; }
+.drawer-open #overlay { opacity: 1; visibility: visible; }
+#drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 85vw; max-width: 340px; background: #2D2F33; border-radius: 0 24px 24px 0; transform: translateX(-104%); transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1); z-index: 100; display: flex; flex-direction: column; padding-top: 20px; box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+.drawer-open #drawer { transform: translateX(0); }
+.drawer-header { padding: 8px 24px 20px; }
+.drawer-header h2 { margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; color: white; }
+.drawer-item { display: flex; align-items: center; gap: 20px; padding: 13px 24px; color: #E3E3E3; font-size: 15px; position: relative; cursor: pointer; border-radius: 0 24px 24px 0; margin-right: 12px; }
+.drawer-item svg { width: 24px; height: 24px; opacity: 0.9; flex-shrink: 0; }
+.drawer-item.active { color: #8AB4F8; background: rgba(138,180,248,0.12); }
+.drawer-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: #8AB4F8; border-radius: 0 3px 3px 0; }
+.drawer-count { margin-left: auto; color: #9AA0A6; font-size: 14px; }
+.drawer-item.active .drawer-count { color: #8AB4F8; }
+.drawer-section { margin: 24px 0 8px; padding: 0 24px; font-size: 13px; color: #9AA0A6; font-weight: 500; }
+.drawer-bottom { margin-top: auto; padding-bottom: 16px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 16px; padding-top: 8px; }
+#recording-screen { position: fixed; inset: 0; background: #121212; z-index: 200; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.2,0.8,0.2,1); }
+.recording #recording-screen { transform: translateY(0); }
+.recording .fab-container { display: none; }
+.rec-header { height: 56px; display: flex; align-items: center; padding: 0 8px; }
+.rec-header button { background: none; border: none; color: #E3E3E3; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.rec-timer { text-align: center; font-size: 56px; font-weight: 300; letter-spacing: 2px; margin-top: 48px; font-variant-numeric: tabular-nums; color: white; }
+.wave-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 24px; min-height: 200px; }
+#wave-canvas { width: 100%; height: 180px; }
+.rec-controls { display: flex; align-items: center; justify-content: center; gap: 40px; padding: 40px 0 56px; }
+.rec-control-btn { width: 64px; height: 64px; border-radius: 50%; border: none; background: #2D2F33; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.rec-control-btn.stop { background: #D32F2F; width: 72px; height: 72px; }
+.empty { text-align: center; padding: 100px 24px; color: #9AA0A6; }
+.empty p { font-size: 18px; margin: 0 0 8px; color: #E3E3E3; }
+#toast { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 20px; border-radius: 24px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300; white-space: nowrap; }
+@media (min-width: 600px) { .group h3 { padding-left: 16px; } .rec-item { padding-left: 8px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <button id="menu-btn" aria-label="Menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    </button>
+    <div class="header-title" id="header-title">Todas as gravações</div>
+    <div class="header-search" id="header-search">
+      <input id="search-input" type="search" placeholder="Pesquisar" autocomplete="off">
+    </div>
+    <button id="search-btn" aria-label="Pesquisar">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    </button>
+  </header>
+
+  <main id="main-list"></main>
+
+  <div class="fab-container">
+    <button id="record-btn" aria-label="Gravar"></button>
+  </div>
+</div>
+
+<div id="overlay"></div>
+<aside id="drawer">
+  <div class="drawer-header">
+    <h2>Gravações<br>de áudio</h2>
+  </div>
+  <div class="drawer-item active">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h3v6H4V9zm5-4h3v14H9V5zm5 7h3v3h-3v-3zm5-9v18h3V3h-3z"/></svg>
+    <span>Todas as gravações</span>
+    <span class="drawer-count" id="count-todas">0</span>
+  </div>
+  <div class="drawer-item">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <span>Favoritas</span>
+    <span class="drawer-count">0</span>
+  </div>
+  <div class="drawer-item">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    <span>Lixeira</span>
+    <span class="drawer-count">0</span>
+  </div>
+  <div class="drawer-section">Minhas pastas</div>
+  <div class="drawer-item">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <span>Nova pasta</span>
+  </div>
+  <div class="drawer-bottom">
+    <div class="drawer-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>Configurações</span>
+    </div>
+  </div>
+</aside>
+
+<div id="recording-screen">
+  <div class="rec-header">
+    <button id="rec-close" aria-label="Fechar"></button>
+  </div>
+  <div class="rec-timer" id="timer">00:00</div>
+  <div class="wave-wrap"><canvas id="wave-canvas"></canvas></div>
+  <div class="rec-controls">
+    <button class="rec-control-btn" id="pause-btn" aria-label="Pausar"></button>
+    <button class="rec-control-btn stop" id="stop-btn" aria-label="Parar"></button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const ICONS = {
+ play: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+ pause: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>',
+ mic: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>',
+ stop: '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>',
+ close: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>'
+};
+document.getElementById('record-btn').innerHTML = ICONS.mic;
+document.getElementById('pause-btn').innerHTML = ICONS.pause;
+document.getElementById('stop-btn').innerHTML = ICONS.stop;
+document.getElementById('rec-close').innerHTML = ICONS.close;
+
+let mediaRecorder, audioChunks = [], stream, startTime, timerInterval, pausedTime = 0, pauseStart = 0;
+let audioCtx, analyser, dataArray, waveAnim;
+let currentAudio = null, currentPlayingId = null;
+
+const DB_NAME = 'gravadorOIOv2';
+const STORE = 'gravacoes';
+
+function openDB() {
+ return new Promise((resolve, reject) => {
+   const req = indexedDB.open(DB_NAME, 1);
+   req.onupgradeneeded = e => {
+     const db = e.target.result;
+     if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+   };
+   req.onsuccess = () => resolve(req.result);
+   req.onerror = () => reject(req.error);
+ });
+}
+
+async function saveRecording(blob, duration) {
+ const db = await openDB();
+ const tx = db.transaction(STORE, 'readwrite');
+ const store = tx.objectStore(STORE);
+ const count = await new Promise(res => { const r = store.count(); r.onsuccess = () => res(r.result); });
+ const rec = { nome: `Gravação ${count + 1}`, blob, duration, data: Date.now(), favorito: false, lixeira: false };
+ store.add(rec);
+ return new Promise(res => tx.oncomplete = () => res());
+}
+
+async function getAll() {
+ const db = await openDB();
+ return new Promise(res => {
+   const tx = db.transaction(STORE, 'readonly');
+   const req = tx.objectStore(STORE).getAll();
+   req.onsuccess = () => res(req.result.sort((a,b) => b.data - a.data));
+ });
+}
+
+function formatDuration(s) {
+ const m = Math.floor(s / 60);
+ const sec = Math.floor(s % 60);
+ return `${m}:${String(sec).padStart(2,'0')}`;
+}
+function formatTimer(s) {
+ const m = String(Math.floor(s/60)).padStart(2,'0');
+ const sec = String(s%60).padStart(2,'0');
+ return `${m}:${sec}`;
+}
+
+async function renderList(filter='') {
+ const recordings = await getAll();
+ const main = document.getElementById('main-list');
+ main.innerHTML = '';
+ const filtered = recordings.filter(r => !r.lixeira && r.nome.toLowerCase().includes(filter.toLowerCase()));
+ document.getElementById('count-todas').textContent = filtered.length;
+ 
+ if (filtered.length === 0) {
+   main.innerHTML = `<div class="empty"><p>Nenhuma gravação</p><span>Toque no microfone para começar</span></div>`;
+   return;
+ }
+ const groups = new Map();
+ filtered.forEach(r => {
+   const d = new Date(r.data);
+   const key = `${d.getFullYear()}-${d.getMonth()}`;
+   const label = d.toLocaleDateString('pt-BR', { month: 'long' });
+   if (!groups.has(key)) groups.set(key, {label, items: []});
+   groups.get(key).items.push(r);
+ });
+ groups.forEach(({label, items}) => {
+   const groupEl = document.createElement('div');
+   groupEl.className = 'group';
+   groupEl.innerHTML = `<h3>${label}</h3>`;
+   items.forEach(rec => {
+     const dateStr = new Date(rec.data).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+     const item = document.createElement('div');
+     item.className = 'rec-item';
+     item.innerHTML = `
+       <button class="play-btn" data-id="${rec.id}">${ICONS.play}</button>
+       <div class="rec-info">
+         <div class="rec-name">${rec.nome}</div>
+         <div class="rec-meta">${formatDuration(rec.duration)} - ${dateStr}</div>
+       </div>
+     `;
+     const btn = item.querySelector('.play-btn');
+     btn.addEventListener('click', () => playRecording(rec.id, rec.blob, btn));
+     groupEl.appendChild(item);
+   });
+   main.appendChild(groupEl);
+ });
+}
+
+function playRecording(id, blob, btn) {
+ if (currentAudio && currentPlayingId === id) {
+   if (currentAudio.paused) { currentAudio.play(); btn.innerHTML = ICONS.pause; }
+   else { currentAudio.pause(); btn.innerHTML = ICONS.play; }
+   return;
+ }
+ if (currentAudio) {
+   currentAudio.pause();
+   document.querySelectorAll('.play-btn').forEach(b => b.innerHTML = ICONS.play);
+ }
+ currentAudio = new Audio(URL.createObjectURL(blob));
+ currentPlayingId = id;
+ currentAudio.play();
+ btn.innerHTML = ICONS.pause;
+ currentAudio.onended = () => { btn.innerHTML = ICONS.play; currentPlayingId = null; };
+ currentAudio.onpause = () => { if (btn) btn.innerHTML = ICONS.play; };
+}
+
+function showToast(msg) {
+ const t = document.getElementById('toast');
+ t.textContent = msg;
+ t.style.opacity = '1';
+ setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+function getMime() {
+ const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];
+ for (const t of types) if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t;
+ return '';
+}
+
+async function startRecording() {
+ if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showToast('Microfone não suportado'); return; }
+ try {
+   stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+ } catch(e) { showToast('Permissão de microfone negada'); return; }
+ document.body.classList.add('recording');
+ audioChunks = [];
+ pausedTime = 0;
+ const mime = getMime();
+ try { mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
+ catch(e) { showToast('Gravador não disponível'); cleanupRecording(); return; }
+ mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+ mediaRecorder.onstop = async () => {
+   const blob = new Blob(audioChunks, { type: mime || 'audio/webm' });
+   const duration = Math.round((Date.now() - startTime - pausedTime)/1000);
+   if (duration > 0 || audioChunks.length) await saveRecording(blob, duration);
+   await renderList(document.getElementById('search-input').value);
+   cleanupRecording();
+ };
+ mediaRecorder.start(200);
+ startTime = Date.now();
+ timerInterval = setInterval(updateTimer, 200);
+ startWaveform();
+ document.getElementById('pause-btn').innerHTML = ICONS.pause;
+}
+
+function updateTimer() {
+ if (mediaRecorder && mediaRecorder.state === 'recording') {
+   const elapsed = Math.floor((Date.now() - startTime - pausedTime)/1000);
+   document.getElementById('timer').textContent = formatTimer(elapsed);
+ }
+}
+
+function startWaveform() {
+ const canvas = document.getElementById('wave-canvas');
+ const ctx = canvas.getContext('2d');
+ const rect = canvas.getBoundingClientRect();
+ canvas.width = rect.width * window.devicePixelRatio;
+ canvas.height = rect.height * window.devicePixelRatio;
+ audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+ analyser = audioCtx.createAnalyser();
+ analyser.fftSize = 256;
+ const source = audioCtx.createMediaStreamSource(stream);
+ source.connect(analyser);
+ dataArray = new Uint8Array(analyser.frequencyBinCount);
+ const draw = () => {
+   waveAnim = requestAnimationFrame(draw);
+   analyser.getByteFrequencyData(dataArray);
+   ctx.clearRect(0,0,canvas.width,canvas.height);
+   const bars = 48;
+   const barW = canvas.width / bars * 0.6;
+   const gap = canvas.width / bars * 0.4;
+   const centerY = canvas.height/2;
+   for (let i=0;i<bars;i++) {
+     const v = dataArray[i*2] / 255;
+     const h = v * canvas.height * 0.45;
+     const x = i * (barW + gap) + gap/2;
+     ctx.fillStyle = '#E3E3E3';
+     ctx.beginPath();
+     const r = barW/2;
+     ctx.roundRect ? ctx.roundRect(x, centerY - h, barW, h*2, r) : ctx.fillRect(x, centerY - h, barW, h*2);
+     ctx.fill();
+   }
+ };
+ draw();
+}
+
+function cleanupRecording() {
+ clearInterval(timerInterval);
+ if (waveAnim) cancelAnimationFrame(waveAnim);
+ if (audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
+ if (stream) { stream.getTracks().forEach(t=>t.stop()); stream = null; }
+ document.body.classList.remove('recording');
+ document.getElementById('timer').textContent = '00:00';
+ mediaRecorder = null;
+}
+
+document.getElementById('record-btn').addEventListener('click', startRecording);
+document.getElementById('pause-btn').addEventListener('click', () => {
+ if (!mediaRecorder) return;
+ if (mediaRecorder.state === 'recording') {
+   mediaRecorder.pause();
+   pauseStart = Date.now();
+   clearInterval(timerInterval);
+   document.getElementById('pause-btn').innerHTML = ICONS.play;
+ } else if (mediaRecorder.state === 'paused') {
+   mediaRecorder.resume();
+   pausedTime += Date.now() - pauseStart;
+   timerInterval = setInterval(updateTimer, 200);
+   document.getElementById('pause-btn').innerHTML = ICONS.pause;
+ }
+});
+document.getElementById('stop-btn').addEventListener('click', () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); });
+document.getElementById('rec-close').addEventListener('click', () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); else cleanupRecording(); });
+
+const menuBtn = document.getElementById('menu-btn');
+const overlay = document.getElementById('overlay');
+menuBtn.addEventListener('click', () => document.body.classList.add('drawer-open'));
+overlay.addEventListener('click', () => document.body.classList.remove('drawer-open'));
+document.querySelectorAll('.drawer-item').forEach(i => i.addEventListener('click', () => document.body.classList.remove('drawer-open')));
+
+const searchBtn = document.getElementById('search-btn');
+const searchInput = document.getElementById('search-input');
+const headerTitle = document.getElementById('header-title');
+const headerSearch = document.getElementById('header-search');
+searchBtn.addEventListener('click', () => {
+ headerTitle.style.display = 'none';
+ headerSearch.style.display = 'flex';
+ searchInput.focus();
+});
+searchInput.addEventListener('input', e => renderList(e.target.value));
+searchInput.addEventListener('blur', () => {
+ if (!searchInput.value) {
+   headerTitle.style.display = '';
+   headerSearch.style.display = 'none';
+ }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+ renderList();
+ if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({title: 'Gravador OIO v2'});
+});
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;var a=target.closest?target.closest("a[href]"):null;if(!a||!a.href||!/^https?:\/\//.test(a.href))return;if(a.href.replace(/#.*$/,"")===loc)return;var productId=extractProductId(target)||extractProductId(a);if(!productId)return;e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*")},true)})();</script></body>
+</html>
